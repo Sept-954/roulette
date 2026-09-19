@@ -1,0 +1,2386 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111411">
+  <title>轮盘概率实验</title>
+  <style>
+:root {
+  --bg: #101310;
+  --surface: #171b17;
+  --surface-raised: #20251f;
+  --surface-soft: #1c211c;
+  --line: #333a32;
+  --line-strong: #465044;
+  --ink: #f0eadc;
+  --ink-soft: #c4c2b6;
+  --muted: #858d80;
+  --brass: #c69a4b;
+  --brass-bright: #e0ba70;
+  --teal: #57bea7;
+  --teal-deep: #1f6f62;
+  --red: #d84f40;
+  --red-bright: #f06a56;
+  --ivory: #e7dfcd;
+  --header-height: 72px;
+  --radius: 10px;
+  --shadow: 0 24px 80px rgba(0, 0, 0, 0.36);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  min-width: 320px;
+  height: 100%;
+  background: var(--bg);
+}
+
+body {
+  min-width: 320px;
+  height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 72% 38%, rgba(87, 190, 167, 0.08), transparent 34%),
+    radial-gradient(circle at 18% 86%, rgba(198, 154, 75, 0.08), transparent 29%),
+    linear-gradient(145deg, #151914 0%, var(--bg) 56%, #0d100e 100%);
+  color: var(--ink);
+  font-family: "Bahnschrift", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--brass-bright);
+  outline-offset: 3px;
+}
+
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: var(--header-height) minmax(0, 1fr);
+  position: relative;
+}
+
+.app-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, black, transparent 72%);
+}
+
+.topbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(16, 19, 16, 0.86);
+  backdrop-filter: blur(18px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+}
+
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #272d26, #141814);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: var(--brass);
+}
+
+.brand-mark svg {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.35;
+}
+
+.brand-mark circle:not(:first-child) {
+  fill: var(--brass);
+  stroke: none;
+}
+
+.brand-mark .brand-pin {
+  fill: var(--ink);
+}
+
+.brand-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand-copy strong {
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 720;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brand-copy small {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.round-indicator {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+
+.round-indicator span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.round-indicator strong {
+  color: var(--brass-bright);
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.workspace {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, 272px) minmax(420px, 1fr) minmax(260px, 310px);
+  background: rgba(18, 22, 18, 0.42);
+}
+
+.stats-panel,
+.control-panel {
+  min-width: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+  background: rgba(22, 26, 22, 0.72);
+}
+
+.stats-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 26px 24px 22px;
+  border-right: 1px solid var(--line);
+}
+
+.control-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 26px 24px 22px;
+  border-left: 1px solid var(--line);
+}
+
+.control-panel > .control-section,
+.control-panel > .shot-button,
+.control-panel > .reload-button,
+.control-panel > .model-note {
+  flex-shrink: 0;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.panel-heading i {
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, var(--line-strong), transparent);
+}
+
+.control-label,
+.section-kicker {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 24px;
+  border-bottom: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.stat-grid > div {
+  min-width: 0;
+  padding: 22px 16px;
+  border-top: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+}
+
+.stat-grid dt {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.stat-grid dd {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 7px;
+  color: var(--ink);
+  font-family: "Cascadia Mono", "Consolas", monospace;
+}
+
+.stat-grid dd span {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-grid dd small {
+  color: var(--muted);
+  font-family: "Microsoft YaHei UI", sans-serif;
+  font-size: 10px;
+}
+
+.history-block {
+  min-height: 0;
+  padding-top: 23px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.section-heading span:last-child {
+  color: var(--muted);
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  font-size: 10px;
+}
+
+.history-list {
+  min-height: 66px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 13px;
+}
+
+.history-chip,
+.history-empty {
+  height: 25px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #121612;
+  color: var(--muted);
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-chip {
+  min-width: 34px;
+  padding: 0 8px;
+}
+
+.history-chip.is-blank {
+  border-color: rgba(87, 190, 167, 0.34);
+  color: var(--teal);
+}
+
+.history-chip.is-bang {
+  border-color: rgba(240, 106, 86, 0.54);
+  background: rgba(216, 79, 64, 0.1);
+  color: var(--red-bright);
+}
+
+.history-empty {
+  padding: 0 10px;
+  border-style: dashed;
+}
+
+.history-round {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(15, 18, 15, 0.56);
+}
+
+.history-round.is-current {
+  border-color: rgba(198, 154, 75, 0.34);
+  background: rgba(198, 154, 75, 0.035);
+}
+
+.history-round-main {
+  min-width: 0;
+}
+
+.history-round-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.history-round-title {
+  color: var(--ink-soft);
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.history-round.is-current .history-round-title {
+  color: var(--brass-bright);
+}
+
+.history-round-status {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.history-round-shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.history-delete {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #121612;
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
+}
+
+.history-delete:hover {
+  border-color: rgba(240, 106, 86, 0.58);
+  background: rgba(216, 79, 64, 0.1);
+  color: var(--red-bright);
+}
+
+.history-delete svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.stage-panel {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(260px, 1fr) auto;
+  padding: 24px 28px 22px;
+  overflow: hidden;
+}
+
+.stage-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.014) 1px, transparent 1px);
+  background-size: 88px 88px;
+  mask-image: radial-gradient(circle at 52% 48%, black, transparent 72%);
+}
+
+.stage-topline {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  color: var(--muted);
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.revolver-stage {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  isolation: isolate;
+}
+
+.stage-glow {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  width: min(64vw, 660px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(87, 190, 167, 0.09), transparent 48%),
+    radial-gradient(circle at 58% 46%, rgba(198, 154, 75, 0.08), transparent 44%);
+  filter: blur(11px);
+  transition: opacity 260ms ease;
+  z-index: -1;
+}
+
+.revolver-stage[data-tone="blank"] .stage-glow {
+  background: radial-gradient(circle, rgba(87, 190, 167, 0.17), transparent 56%);
+}
+
+.revolver-stage[data-tone="bang"] .stage-glow {
+  background: radial-gradient(circle, rgba(216, 79, 64, 0.2), transparent 56%);
+}
+
+.revolver-art {
+  width: min(100%, 900px);
+  max-height: min(62vh, 590px);
+  overflow: visible;
+}
+
+.gun-part {
+  fill: url("#gun-body");
+  stroke: #171b18;
+  stroke-width: 3;
+}
+
+.gun-grip {
+  fill: url("#grip-wood");
+}
+
+.gun-grip-panel {
+  fill: #6d472f;
+  stroke: rgba(231, 223, 205, 0.16);
+  stroke-width: 2;
+}
+
+.gun-frame,
+.gun-barrel,
+.gun-underlug,
+.gun-hammer,
+.gun-trigger,
+.gun-crown {
+  stroke: #171b18;
+}
+
+.gun-highlight {
+  fill: rgba(255, 255, 255, 0.22);
+}
+
+.gun-line {
+  fill: none;
+  stroke: rgba(236, 233, 220, 0.2);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.gun-trigger-guard {
+  fill: none;
+  stroke: url("#gun-edge");
+  stroke-width: 13;
+  stroke-linecap: round;
+}
+
+.gun-trigger {
+  fill: #4c5350;
+}
+
+.gun-screw {
+  fill: #242925;
+  stroke: rgba(231, 223, 205, 0.32);
+  stroke-width: 1.5;
+}
+
+.cylinder-rotor {
+  transform-box: view-box;
+  transform-origin: 375px 220px;
+}
+
+.cylinder-rotor.is-spinning {
+  animation: cylinder-spin 560ms cubic-bezier(0.32, 0.72, 0.2, 1);
+}
+
+.cylinder-rotor.is-reloading {
+  animation: cylinder-reload 720ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cylinder-back {
+  fill: #101410;
+  opacity: 0.72;
+}
+
+.cylinder-rim {
+  fill: #343a36;
+  stroke: #151916;
+  stroke-width: 3;
+}
+
+.cylinder-face {
+  fill: url("#cylinder-face");
+  stroke: #202521;
+  stroke-width: 2;
+}
+
+.cylinder-flutes path {
+  fill: none;
+  stroke: rgba(21, 25, 22, 0.42);
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+.cylinder-pin-ring {
+  fill: #242a26;
+  stroke: rgba(236, 233, 220, 0.25);
+  stroke-width: 2;
+}
+
+.cylinder-pin {
+  fill: url("#cylinder-center");
+  stroke: #181c19;
+  stroke-width: 2;
+}
+
+.chamber-cell .chamber-seat {
+  fill: #131713;
+  stroke: rgba(231, 223, 205, 0.2);
+  stroke-width: 2;
+}
+
+.chamber-cell .chamber-core {
+  fill: #e2dbc9;
+  stroke: #242a26;
+  stroke-width: 2.5;
+  transition: fill 160ms ease, stroke 160ms ease;
+}
+
+.chamber-cell .chamber-number {
+  fill: #212620;
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  font-size: 8px;
+  font-weight: 800;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+.chamber-cell.is-spent .chamber-core {
+  fill: #30372f;
+  stroke: rgba(87, 190, 167, 0.45);
+}
+
+.chamber-cell.is-spent .chamber-number {
+  fill: #788078;
+}
+
+.chamber-cell.is-hit .chamber-core {
+  fill: var(--red);
+  stroke: #ffb09f;
+  filter: url("#soft-glow");
+}
+
+.chamber-cell.is-hit .chamber-number {
+  fill: #fff5ed;
+}
+
+.result-stamp {
+  position: absolute;
+  top: 12%;
+  right: 5%;
+  z-index: 3;
+  padding: 7px 12px 5px;
+  border: 2px solid currentColor;
+  color: var(--teal);
+  font-size: clamp(18px, 2.4vw, 31px);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  opacity: 0;
+  transform: rotate(-7deg) scale(0.88);
+  transition: opacity 150ms ease, transform 180ms ease;
+}
+
+.revolver-stage[data-tone="blank"] .result-stamp,
+.revolver-stage[data-tone="bang"] .result-stamp {
+  animation: stamp-in 760ms ease both;
+}
+
+.revolver-stage[data-tone="bang"] .result-stamp {
+  color: var(--red-bright);
+}
+
+.cylinder-legend {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.cylinder-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cylinder-legend i {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
+}
+
+.legend-live {
+  background: var(--ivory);
+}
+
+.legend-spent {
+  background: #30372f;
+}
+
+.legend-hit {
+  background: var(--red);
+}
+
+.status-console {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 13px;
+  min-height: 88px;
+  padding: 17px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(19, 23, 19, 0.78);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.status-lamp {
+  width: 9px;
+  height: 9px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--brass);
+  box-shadow: 0 0 0 5px rgba(198, 154, 75, 0.08), 0 0 18px rgba(198, 154, 75, 0.38);
+}
+
+.revolver-stage[data-tone="blank"] + .status-console .status-lamp {
+  background: var(--teal);
+  box-shadow: 0 0 0 5px rgba(87, 190, 167, 0.08), 0 0 18px rgba(87, 190, 167, 0.4);
+}
+
+.revolver-stage[data-tone="bang"] + .status-console .status-lamp {
+  background: var(--red-bright);
+  box-shadow: 0 0 0 5px rgba(216, 79, 64, 0.09), 0 0 20px rgba(216, 79, 64, 0.46);
+}
+
+.status-console strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ivory);
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.status-console p {
+  max-width: 760px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.control-section {
+  padding: 25px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.control-label {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #101410;
+}
+
+.mode-button {
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+
+.mode-button:hover {
+  color: var(--ink);
+}
+
+.mode-button.is-active {
+  background: var(--surface-raised);
+  color: var(--ivory);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.mode-button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mode-button span {
+  font-size: 13px;
+}
+
+.interval-control {
+  transition: opacity 180ms ease;
+}
+
+.interval-control.is-disabled {
+  opacity: 0.42;
+}
+
+.control-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.control-label-row output {
+  color: var(--brass-bright);
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.duration-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.duration-unit {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #101410;
+}
+
+.duration-unit input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ivory);
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  font-size: 19px;
+  font-weight: 720;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.duration-unit input::-webkit-inner-spin-button,
+.duration-unit input::-webkit-outer-spin-button {
+  opacity: 0.52;
+}
+
+.duration-unit input:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.duration-unit span {
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.duration-hint {
+  margin-top: 9px;
+  color: #676f63;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.shot-button {
+  position: relative;
+  width: min(100%, 196px);
+  min-height: 176px;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 27px;
+  overflow: hidden;
+  border: 1px solid rgba(240, 106, 86, 0.42);
+  border-radius: 50%;
+  aspect-ratio: 1;
+  background:
+    radial-gradient(circle at 50% 34%, rgba(255, 255, 255, 0.12), transparent 25%),
+    linear-gradient(145deg, #e35b4b, #a72f27 78%);
+  color: #fff7ef;
+  cursor: pointer;
+  box-shadow:
+    0 22px 46px rgba(133, 33, 27, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    inset 0 -9px 20px rgba(74, 12, 10, 0.3);
+  transition: transform 150ms ease, filter 150ms ease, box-shadow 150ms ease;
+}
+
+.shot-button::before {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: inherit;
+}
+
+.shot-button:hover:not(:disabled) {
+  transform: translateY(-3px);
+  filter: saturate(1.06) brightness(1.04);
+  box-shadow:
+    0 28px 54px rgba(133, 33, 27, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -9px 20px rgba(74, 12, 10, 0.3);
+}
+
+.shot-button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.985);
+}
+
+.shot-button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.35) brightness(0.74);
+}
+
+.shot-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  background: rgba(46, 7, 6, 0.18);
+}
+
+.shot-icon svg {
+  width: 21px;
+  height: 21px;
+  fill: currentColor;
+}
+
+.shot-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.shot-copy small {
+  color: rgba(255, 247, 239, 0.72);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.shot-copy strong {
+  font-size: 18px;
+  font-weight: 720;
+  letter-spacing: 0.08em;
+}
+
+.shot-rail {
+  position: absolute;
+  left: 50%;
+  bottom: 17px;
+  width: 28px;
+  height: 3px;
+  border-radius: 3px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.reload-button {
+  flex: 0 0 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #151915;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+
+.reload-button:hover {
+  border-color: var(--brass);
+  background: #1e231d;
+  color: var(--ivory);
+}
+
+.reload-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.reload-button span {
+  font-size: 13px;
+}
+
+.model-note {
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+.model-note span {
+  color: var(--brass);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.model-note p {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+@keyframes cylinder-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(222deg);
+  }
+}
+
+@keyframes cylinder-reload {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  45% {
+    transform: rotate(-164deg) scale(0.96);
+  }
+  100% {
+    transform: rotate(-360deg) scale(1);
+  }
+}
+
+@keyframes stamp-in {
+  0% {
+    opacity: 0;
+    transform: rotate(-7deg) scale(1.22);
+  }
+  18% {
+    opacity: 0.34;
+    transform: rotate(-7deg) scale(0.94);
+  }
+  72% {
+    opacity: 0.28;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(-7deg) scale(1);
+  }
+}
+
+@media (max-width: 1080px) {
+  body {
+    overflow: auto;
+  }
+
+  .app-shell {
+    height: auto;
+    grid-template-rows: auto 1fr;
+  }
+
+  .workspace {
+    min-height: calc(100dvh - var(--header-height));
+    grid-template-columns: minmax(210px, 245px) minmax(0, 1fr);
+    grid-template-rows: minmax(580px, 1fr) auto;
+  }
+
+  .stage-panel {
+    min-height: 580px;
+  }
+
+  .control-panel {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(180px, 0.75fr) minmax(180px, 0.75fr) minmax(210px, 1fr) minmax(150px, 0.7fr);
+    align-items: center;
+    gap: 22px;
+    padding: 20px 24px;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .control-panel .panel-heading,
+  .model-note {
+    display: none;
+  }
+
+  .control-section {
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .shot-button {
+    width: 112px;
+    min-height: 112px;
+    justify-self: center;
+    gap: 7px;
+    margin-top: 0;
+  }
+
+  .shot-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .shot-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .shot-copy strong {
+    font-size: 13px;
+  }
+
+  .shot-copy small,
+  .shot-rail {
+    display: none;
+  }
+
+  .reload-button {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --header-height: auto;
+  }
+
+  .topbar {
+    min-height: 66px;
+    padding: 10px 16px;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+  }
+
+  .brand-copy strong {
+    font-size: 15px;
+  }
+
+  .brand-copy small {
+    font-size: 9px;
+  }
+
+  .round-indicator span {
+    display: none;
+  }
+
+  .round-indicator {
+    padding-left: 11px;
+  }
+
+  .round-indicator strong {
+    font-size: 12px;
+  }
+
+  .workspace {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stats-panel,
+  .control-panel {
+    overflow: visible;
+    border: 0;
+  }
+
+  .stats-panel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    padding: 20px 16px 18px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .stats-panel .panel-heading,
+  .history-block {
+    grid-column: 1 / -1;
+  }
+
+  .stat-grid {
+    grid-column: 1 / -1;
+    margin-top: 18px;
+  }
+
+  .history-block {
+    padding-top: 19px;
+  }
+
+  .stage-panel {
+    min-height: 520px;
+    display: block;
+    padding: 18px 14px 16px;
+  }
+
+  .revolver-stage {
+    min-height: 340px;
+    margin: 10px 0 8px;
+  }
+
+  .revolver-art {
+    width: 125%;
+    max-width: none;
+    max-height: 390px;
+  }
+
+  .result-stamp {
+    top: 8%;
+    right: 3%;
+  }
+
+  .cylinder-legend {
+    left: 4px;
+  }
+
+  .status-console {
+    min-height: 0;
+    padding: 15px;
+  }
+
+  .control-panel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding: 20px 16px max(22px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+  }
+
+  .control-panel .panel-heading {
+    grid-column: 1 / -1;
+  }
+
+  .control-section {
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .shot-button {
+    width: 132px;
+    min-height: 132px;
+  }
+
+  .shot-copy small {
+    display: block;
+  }
+
+  .reload-button {
+    align-self: center;
+  }
+
+  .model-note {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 470px) {
+  .workspace {
+    min-width: 0;
+  }
+
+  .revolver-art {
+    width: 148%;
+  }
+
+  .stat-grid dd span {
+    font-size: 18px;
+  }
+
+  .control-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .control-panel .panel-heading,
+  .model-note {
+    grid-column: 1;
+  }
+
+  .segmented-control {
+    max-width: 280px;
+  }
+
+  .shot-button {
+    justify-self: stretch;
+    width: min(100%, 300px);
+    min-height: 104px;
+    aspect-ratio: auto;
+    border-radius: 52px;
+  }
+
+  .reload-button {
+    width: min(100%, 300px);
+    justify-self: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32">
+            <circle cx="16" cy="16" r="10.5"></circle>
+            <circle cx="16" cy="8.8" r="2.2"></circle>
+            <circle cx="22.2" cy="12.4" r="2.2"></circle>
+            <circle cx="22.2" cy="19.6" r="2.2"></circle>
+            <circle cx="16" cy="23.2" r="2.2"></circle>
+            <circle cx="9.8" cy="19.6" r="2.2"></circle>
+            <circle cx="9.8" cy="12.4" r="2.2"></circle>
+            <circle cx="16" cy="16" r="2.5" class="brand-pin"></circle>
+          </svg>
+        </span>
+        <span class="brand-copy">
+          <strong>轮盘概率实验</strong>
+          <small>6 膛 · 1 发 · 不放回</small>
+        </span>
+      </div>
+
+      <div class="round-indicator" aria-label="当前轮次">
+        <span>当前轮次</span>
+        <strong id="round-indicator">第 01 轮</strong>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="stats-panel" aria-label="当前状态">
+        <div class="panel-heading">
+          <span>实时数据</span>
+          <i aria-hidden="true"></i>
+        </div>
+
+        <dl class="stat-grid">
+          <div>
+            <dt>已击发</dt>
+            <dd><span id="shot-count">0</span><small>次</small></dd>
+          </div>
+          <div>
+            <dt>空膛结果</dt>
+            <dd><span id="blank-count">0</span><small>次</small></dd>
+          </div>
+        </dl>
+
+        <section class="history-block">
+          <div class="section-heading">
+            <span>触发记录</span>
+            <span id="history-count">0 次</span>
+          </div>
+          <div id="history-list" class="history-list" aria-live="polite">
+            <span class="history-empty">尚未击发</span>
+          </div>
+        </section>
+      </aside>
+
+      <section class="stage-panel" aria-label="左轮手枪与弹膛状态">
+        <div class="stage-topline">
+          <span>机械动作</span>
+          <span id="stage-sequence">SEQUENCE 000</span>
+        </div>
+
+        <div id="revolver-stage" class="revolver-stage" data-tone="ready">
+          <div class="stage-glow" aria-hidden="true"></div>
+          <svg class="revolver-art" viewBox="0 0 900 520" role="img" aria-labelledby="revolver-title revolver-desc">
+            <title id="revolver-title">六膛左轮手枪</title>
+            <desc id="revolver-desc">一把侧视图左轮手枪，转轮中显示六个弹膛的当前状态。</desc>
+            <defs>
+              <linearGradient id="gun-body" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#d6d8d2"></stop>
+                <stop offset="0.28" stop-color="#929995"></stop>
+                <stop offset="0.62" stop-color="#474e4a"></stop>
+                <stop offset="1" stop-color="#252a27"></stop>
+              </linearGradient>
+              <linearGradient id="gun-edge" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#f4f0e5"></stop>
+                <stop offset="0.32" stop-color="#b8bcb6"></stop>
+                <stop offset="1" stop-color="#4b514d"></stop>
+              </linearGradient>
+              <linearGradient id="grip-wood" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#8f6040"></stop>
+                <stop offset="0.48" stop-color="#5d3828"></stop>
+                <stop offset="1" stop-color="#2d1d18"></stop>
+              </linearGradient>
+              <linearGradient id="cylinder-face" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#e2e2da"></stop>
+                <stop offset="0.42" stop-color="#8f9690"></stop>
+                <stop offset="1" stop-color="#343a36"></stop>
+              </linearGradient>
+              <radialGradient id="cylinder-center" cx="38%" cy="32%" r="74%">
+                <stop offset="0" stop-color="#e7e5db"></stop>
+                <stop offset="0.48" stop-color="#858c86"></stop>
+                <stop offset="1" stop-color="#303532"></stop>
+              </radialGradient>
+              <filter id="gun-shadow" x="-20%" y="-30%" width="150%" height="190%">
+                <feDropShadow dx="0" dy="18" stdDeviation="16" flood-color="#050605" flood-opacity="0.58"></feDropShadow>
+              </filter>
+              <filter id="soft-glow" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="5" result="blur"></feGaussianBlur>
+                <feMerge>
+                  <feMergeNode in="blur"></feMergeNode>
+                  <feMergeNode in="SourceGraphic"></feMergeNode>
+                </feMerge>
+              </filter>
+            </defs>
+
+            <ellipse cx="525" cy="462" rx="282" ry="25" fill="#050605" opacity="0.32"></ellipse>
+
+            <g class="gun-assembly" filter="url(#gun-shadow)">
+              <path class="gun-part gun-grip" d="M315 278 H426 L421 324 Q416 368 386 399 L330 454 Q306 476 282 469 L267 433 Q301 381 313 330 Z"></path>
+              <path class="gun-part gun-grip-panel" d="M320 301 L402 299 L394 338 Q388 367 365 391 L326 427 Q312 438 301 439 L293 418 Q316 374 323 333 Z"></path>
+              <path class="gun-part gun-frame" d="M290 164 H514 Q543 164 562 187 V231 H452 V271 H421 Q396 271 382 294 L367 323 H327 L313 287 Z"></path>
+              <path class="gun-part gun-topstrap" d="M291 164 H510 Q540 164 560 188 L581 211 H499 L477 191 H409 L385 217 H313 V176 Z"></path>
+              <path class="gun-part gun-barrel" d="M510 184 H814 Q839 184 848 198 V231 Q848 247 831 247 H547 Q523 247 508 226 Z"></path>
+              <path class="gun-part gun-underlug" d="M527 231 H790 Q808 231 808 244 V260 Q808 273 793 273 H546 Q524 273 512 254 Z"></path>
+              <path class="gun-part gun-crown" d="M832 186 H857 Q869 186 871 198 V235 Q871 247 858 247 H832 Z"></path>
+              <path class="gun-highlight" d="M530 193 H804 Q819 193 828 204 V210 H542 Q529 210 518 201 Z"></path>
+              <path class="gun-line" d="M557 216 H820"></path>
+              <path class="gun-line" d="M551 269 H754"></path>
+              <path class="gun-part gun-hammer" d="M309 161 L288 130 L274 136 L283 173 L301 184 Z"></path>
+              <path class="gun-part gun-trigger" d="M384 300 Q401 292 413 302 Q422 313 409 326 L386 334 Z"></path>
+              <path class="gun-trigger-guard" d="M378 291 Q467 292 462 361 Q458 419 389 407 L356 401"></path>
+              <path class="gun-line" d="M329 286 L403 288"></path>
+
+              <g id="cylinder-rotor" class="cylinder-rotor">
+                <circle class="cylinder-back" cx="375" cy="220" r="86"></circle>
+                <circle class="cylinder-rim" cx="375" cy="220" r="83"></circle>
+                <circle class="cylinder-face" cx="375" cy="220" r="74"></circle>
+                <g class="cylinder-flutes" aria-hidden="true">
+                  <path d="M375 151 L375 182"></path>
+                  <path d="M434 191 L405 208"></path>
+                  <path d="M434 249 L405 232"></path>
+                  <path d="M375 289 L375 258"></path>
+                  <path d="M316 249 L345 232"></path>
+                  <path d="M316 191 L345 208"></path>
+                </g>
+                <g id="cylinder-chambers" class="cylinder-chambers"></g>
+                <circle class="cylinder-pin-ring" cx="375" cy="220" r="16"></circle>
+                <circle class="cylinder-pin" cx="375" cy="220" r="8"></circle>
+              </g>
+
+              <circle class="gun-screw" cx="347" cy="192" r="4"></circle>
+              <circle class="gun-screw" cx="405" cy="265" r="4"></circle>
+              <circle class="gun-screw" cx="339" cy="397" r="4"></circle>
+            </g>
+          </svg>
+
+          <div id="result-stamp" class="result-stamp" aria-hidden="true">空膛</div>
+
+          <div class="cylinder-legend" aria-hidden="true">
+            <span><i class="legend-live"></i>未击发</span>
+            <span><i class="legend-spent"></i>空膛</span>
+            <span><i class="legend-hit"></i>实弹</span>
+          </div>
+        </div>
+
+        <div class="status-console">
+          <span class="status-lamp" aria-hidden="true"></span>
+          <div>
+            <span class="section-kicker">系统状态</span>
+            <strong id="status-title">等待击发</strong>
+            <p id="status-detail">实弹位置未知，击发结果会记录在左侧。</p>
+          </div>
+        </div>
+      </section>
+
+      <aside class="control-panel" aria-label="击发控制">
+        <div class="panel-heading">
+          <span>击发控制</span>
+          <i aria-hidden="true"></i>
+        </div>
+
+        <section class="control-section">
+          <span class="control-label">触发方式</span>
+          <div class="segmented-control" role="radiogroup" aria-label="触发方式">
+            <button id="mode-manual" class="mode-button is-active" type="button" role="radio" aria-checked="true">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 12.5V6a1.7 1.7 0 0 1 3.4 0v5.1"></path>
+                <path d="M11.4 10V4.5a1.7 1.7 0 0 1 3.4 0V10"></path>
+                <path d="M14.8 10.5V6.2a1.7 1.7 0 0 1 3.4 0v7.4c0 4.2-2.8 7.4-6.8 7.4h-.7a6 6 0 0 1-5.2-3l-1.9-3.3a1.8 1.8 0 0 1 2.8-2.2l2.3 2.1"></path>
+              </svg>
+              <span>手动</span>
+            </button>
+            <button id="mode-auto" class="mode-button" type="button" role="radio" aria-checked="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="13" r="7.5"></circle>
+                <path d="M12 10v3l2 1.4M9 3h6M12 5.5V3"></path>
+              </svg>
+              <span>定时</span>
+            </button>
+          </div>
+        </section>
+
+        <section id="interval-control" class="control-section interval-control is-disabled">
+          <div class="control-label-row">
+            <span class="control-label">等待时长</span>
+            <output id="interval-value">00:00:05</output>
+          </div>
+          <div class="duration-picker">
+            <label class="duration-unit">
+              <input id="duration-hours" type="number" min="0" max="999" step="1" value="0" inputmode="numeric" disabled>
+              <span>小时</span>
+            </label>
+            <label class="duration-unit">
+              <input id="duration-minutes" type="number" min="0" max="59" step="1" value="0" inputmode="numeric" disabled>
+              <span>分钟</span>
+            </label>
+            <label class="duration-unit">
+              <input id="duration-seconds" type="number" min="0" max="59" step="1" value="5" inputmode="numeric" disabled>
+              <span>秒</span>
+            </label>
+          </div>
+          <p class="duration-hint">等待结束后自动击发一次，空膛则继续等待。</p>
+        </section>
+
+        <button id="shot-button" class="shot-button" type="button" aria-keyshortcuts="Space">
+          <span class="shot-icon">
+            <svg id="auto-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 4.5 19 12 5 19.5z"></path>
+            </svg>
+          </span>
+          <span class="shot-copy">
+            <small id="shot-kicker">手动模式</small>
+            <strong id="shot-label">扣动扳机</strong>
+          </span>
+          <span class="shot-rail" aria-hidden="true"></span>
+        </button>
+
+        <button id="reload-button" class="reload-button" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 7v5h-5"></path>
+            <path d="M18.4 16.5A8 8 0 1 1 20 12"></path>
+          </svg>
+          <span>重新装填</span>
+        </button>
+
+        <section class="model-note">
+          <span>等待规则</span>
+          <p>定时模式会先等待所选时长，再自动击发；每次空膛后重新计时，直到实弹触发。</p>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+(function attachRouletteEngine(root, factory) {
+  const engine = factory();
+
+  if (typeof module === "object" && module.exports) {
+    module.exports = engine;
+  }
+
+  if (root) {
+    root.createRouletteGame = engine.createRouletteGame;
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this, function createEngine() {
+  "use strict";
+
+  function createRouletteGame(options) {
+    const config = options || {};
+    const chamberCount = Number.isInteger(config.chambers) && config.chambers > 0
+      ? config.chambers
+      : 6;
+    const random = typeof config.random === "function" ? config.random : Math.random;
+    let state;
+
+    function cloneState(source) {
+      return {
+        chamberCount: source.chamberCount,
+        chambers: source.chambers.map((chamber) => ({ ...chamber })),
+        cursor: source.cursor,
+        unspentCount: source.unspentCount,
+        remainingBlankCount: source.remainingBlankCount,
+        remainingRoundCount: source.remainingRoundCount,
+        shotsFired: source.shotsFired,
+        blanksFired: source.blanksFired,
+        probability: source.probability,
+        status: source.status,
+        lastShot: source.lastShot ? { ...source.lastShot } : null
+      };
+    }
+
+    function updateDerivedState(source) {
+      const unspent = source.chambers.filter((chamber) => !chamber.spent);
+      source.unspentCount = unspent.length;
+      source.remainingBlankCount = unspent.filter((chamber) => !chamber.loaded).length;
+      source.remainingRoundCount = unspent.filter((chamber) => chamber.loaded).length;
+      source.probability = source.status === "finished" || !unspent.length
+        ? 0
+        : source.remainingRoundCount / unspent.length;
+      return source;
+    }
+
+    function buildState() {
+      const loadedIndex = Math.min(
+        chamberCount - 1,
+        Math.max(0, Math.floor(random() * chamberCount))
+      );
+
+      return updateDerivedState({
+        chamberCount,
+        chambers: Array.from({ length: chamberCount }, (_, index) => ({
+          index,
+          loaded: index === loadedIndex,
+          spent: false
+        })),
+        cursor: 0,
+        unspentCount: chamberCount,
+        remainingBlankCount: chamberCount - 1,
+        remainingRoundCount: 1,
+        shotsFired: 0,
+        blanksFired: 0,
+        probability: 1 / chamberCount,
+        status: "ready",
+        lastShot: null
+      });
+    }
+
+    function getState() {
+      return cloneState(state);
+    }
+
+    function shoot() {
+      if (state.status === "finished") {
+        return {
+          result: "stopped",
+          chamberIndex: null,
+          probabilityBefore: 0,
+          state: getState()
+        };
+      }
+
+      const chamberIndex = state.cursor;
+      const chamber = state.chambers[chamberIndex];
+      const probabilityBefore = state.probability;
+
+      chamber.spent = true;
+      state.cursor += 1;
+      state.shotsFired += 1;
+
+      if (chamber.loaded) {
+        state.status = "finished";
+        state.lastShot = {
+          result: "bang",
+          chamberIndex,
+          probabilityBefore
+        };
+      } else {
+        state.blanksFired += 1;
+        state.lastShot = {
+          result: "blank",
+          chamberIndex,
+          probabilityBefore
+        };
+      }
+
+      updateDerivedState(state);
+
+      return {
+        result: state.lastShot.result,
+        chamberIndex,
+        probabilityBefore,
+        state: getState()
+      };
+    }
+
+    function reset() {
+      state = buildState();
+      return getState();
+    }
+
+    reset();
+
+    return {
+      shoot,
+      reset,
+      getState
+    };
+  }
+
+  return {
+    createRouletteGame
+  };
+});
+
+  </script>
+  <script>
+(function attachRouletteTimer(root, factory) {
+  const timer = factory();
+
+  if (typeof module === "object" && module.exports) {
+    module.exports = timer;
+  }
+
+  if (root) {
+    root.rouletteTimer = timer;
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this, function createTimer() {
+  "use strict";
+
+  const MAX_TIMER_CHUNK_MS = 2_147_000_000;
+
+  function clampWhole(value, minimum, maximum) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return minimum;
+    return Math.min(maximum, Math.max(minimum, Math.trunc(number)));
+  }
+
+  function durationToMilliseconds(duration) {
+    const source = duration || {};
+    const hours = clampWhole(source.hours, 0, 999);
+    const minutes = clampWhole(source.minutes, 0, 59);
+    const seconds = clampWhole(source.seconds, 0, 59);
+    const milliseconds = ((hours * 60 + minutes) * 60 + seconds) * 1000;
+    return Math.max(1000, milliseconds);
+  }
+
+  function formatClock(milliseconds) {
+    const safeMilliseconds = Number.isFinite(Number(milliseconds))
+      ? Math.max(0, Number(milliseconds))
+      : 0;
+    const totalSeconds = Math.ceil(safeMilliseconds / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return [hours, minutes, seconds]
+      .map((value) => String(value).padStart(2, "0"))
+      .join(":");
+  }
+
+  function getTimerChunk(milliseconds) {
+    return Math.min(
+      MAX_TIMER_CHUNK_MS,
+      Math.max(0, Number(milliseconds) || 0)
+    );
+  }
+
+  return {
+    MAX_TIMER_CHUNK_MS,
+    durationToMilliseconds,
+    formatClock,
+    getTimerChunk
+  };
+});
+
+  </script>
+  <script>
+(function attachRoundHistory(root, factory) {
+  root.createRoundHistory = factory();
+})(typeof globalThis !== "undefined" ? globalThis : this, function createHistory() {
+  "use strict";
+
+  function createRoundHistory() {
+    let currentRound = 1;
+    let rounds = [{ number: 1, shots: [], closed: false }];
+
+    function cloneShot(shot) {
+      return {
+        ...shot,
+        state: shot.state ? { ...shot.state } : null
+      };
+    }
+
+    function getState() {
+      return {
+        currentRound,
+        triggerCount: rounds.reduce((total, round) => total + round.shots.length, 0),
+        rounds: rounds.map((round) => ({
+          ...round,
+          shots: round.shots.map(cloneShot)
+        }))
+      };
+    }
+
+    function addShot(shot) {
+      rounds[0].shots.unshift(cloneShot(shot));
+      return getState();
+    }
+
+    function closeCurrentRound() {
+      const round = rounds[0];
+      if (round.shots.length) {
+        round.closed = true;
+      } else {
+        rounds.shift();
+      }
+
+      currentRound += 1;
+      rounds.unshift({ number: currentRound, shots: [], closed: false });
+      return getState();
+    }
+
+    function deleteRound(number) {
+      const target = rounds.find((round) => round.number === number);
+      if (!target || !target.closed) return false;
+      rounds = rounds.filter((round) => round.number !== number);
+      return true;
+    }
+
+    return {
+      addShot,
+      closeCurrentRound,
+      deleteRound,
+      getState
+    };
+  }
+
+  return createRoundHistory;
+});
+  </script>
+  <script>
+"use strict";
+
+(function initializeRoulettePage() {
+  const game = window.createRouletteGame();
+
+  const refs = {
+    stage: document.getElementById("revolver-stage"),
+    rotor: document.getElementById("cylinder-rotor"),
+    chambers: document.getElementById("cylinder-chambers"),
+    shotButton: document.getElementById("shot-button"),
+    shotKicker: document.getElementById("shot-kicker"),
+    shotLabel: document.getElementById("shot-label"),
+    autoIcon: document.getElementById("auto-icon"),
+    modeManual: document.getElementById("mode-manual"),
+    modeAuto: document.getElementById("mode-auto"),
+    intervalControl: document.getElementById("interval-control"),
+    durationHours: document.getElementById("duration-hours"),
+    durationMinutes: document.getElementById("duration-minutes"),
+    durationSeconds: document.getElementById("duration-seconds"),
+    intervalValue: document.getElementById("interval-value"),
+    reloadButton: document.getElementById("reload-button"),
+    shotCount: document.getElementById("shot-count"),
+    blankCount: document.getElementById("blank-count"),
+    resultStamp: document.getElementById("result-stamp"),
+    statusTitle: document.getElementById("status-title"),
+    statusDetail: document.getElementById("status-detail"),
+    historyList: document.getElementById("history-list"),
+    historyCount: document.getElementById("history-count"),
+    roundIndicator: document.getElementById("round-indicator"),
+    stageSequence: document.getElementById("stage-sequence")
+  };
+
+  const ICONS = {
+    manual:
+      '<circle style="fill:none" cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.8"></circle>' +
+      '<path style="fill:none" d="M12 2.8v3.4M12 17.8v3.4M2.8 12h3.4M17.8 12h3.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>',
+    play: '<path style="fill:currentColor;stroke:none" d="M7 4.5 19 12 7 19.5z"></path>',
+    pause:
+      '<path style="fill:currentColor;stroke:none" d="M6.5 4.5h3.6v15H6.5zM13.9 4.5h3.6v15h-3.6z"></path>'
+  };
+
+  const state = {
+    mode: "manual",
+    autoRunning: false,
+    autoTimer: null,
+    countdownTimer: null,
+    autoDeadline: null,
+    spinning: false,
+    roundNumber: 1,
+    roundHistory: window.createRoundHistory(),
+    latestShot: null
+  };
+
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function pad(value, length) {
+    return String(value).padStart(length, "0");
+  }
+
+  function readDurationMilliseconds() {
+    return window.rouletteTimer.durationToMilliseconds({
+      hours: refs.durationHours.value,
+      minutes: refs.durationMinutes.value,
+      seconds: refs.durationSeconds.value
+    });
+  }
+
+  function syncIntervalOutput() {
+    const remaining = state.autoRunning && state.autoDeadline
+      ? Math.max(0, state.autoDeadline - Date.now())
+      : readDurationMilliseconds();
+    refs.intervalValue.textContent = window.rouletteTimer.formatClock(remaining);
+  }
+
+  function makeSvgElement(name, attributes) {
+    const element = document.createElementNS("http://www.w3.org/2000/svg", name);
+    Object.entries(attributes).forEach(([key, value]) => {
+      element.setAttribute(key, String(value));
+    });
+    return element;
+  }
+
+  function renderChambers(gameState) {
+    refs.chambers.replaceChildren();
+
+    gameState.chambers.forEach((chamber, index) => {
+      const angle = (-90 + index * 60) * (Math.PI / 180);
+      const x = 375 + Math.cos(angle) * 43;
+      const y = 220 + Math.sin(angle) * 43;
+      const isHit = chamber.loaded && chamber.spent;
+      const cellClass = isHit ? "is-hit" : chamber.spent ? "is-spent" : "";
+      const group = makeSvgElement("g", {
+        class: `chamber-cell ${cellClass}`.trim(),
+        transform: `translate(${x.toFixed(2)} ${y.toFixed(2)})`
+      });
+      const title = makeSvgElement("title", {});
+      title.textContent = isHit
+        ? `弹膛 ${index + 1}：实弹已击发`
+        : chamber.spent
+          ? `弹膛 ${index + 1}：空膛已击发`
+          : `弹膛 ${index + 1}：未击发`;
+      const seat = makeSvgElement("circle", {
+        class: "chamber-seat",
+        r: 12
+      });
+      const core = makeSvgElement("circle", {
+        class: "chamber-core",
+        r: 9
+      });
+      const number = makeSvgElement("text", {
+        class: "chamber-number",
+        x: 0,
+        y: 0.4
+      });
+      number.textContent = String(index + 1);
+      group.append(title, seat, core, number);
+      refs.chambers.appendChild(group);
+    });
+  }
+
+  function renderHistory() {
+    refs.historyList.replaceChildren();
+    const historyState = state.roundHistory.getState();
+    refs.historyCount.textContent = `${historyState.triggerCount} 次`;
+
+    historyState.rounds.forEach((round) => {
+      const row = document.createElement("div");
+      row.className = `history-round${round.closed ? "" : " is-current"}`;
+
+      const main = document.createElement("div");
+      main.className = "history-round-main";
+
+      const head = document.createElement("div");
+      head.className = "history-round-head";
+
+      const title = document.createElement("span");
+      title.className = "history-round-title";
+      title.textContent = `第 ${pad(round.number, 2)} 轮`;
+
+      const status = document.createElement("span");
+      status.className = "history-round-status";
+      status.textContent = round.closed
+        ? `已结束 · ${round.shots.length} 次`
+        : `当前 · ${round.shots.length} 次`;
+
+      const shotList = document.createElement("div");
+      shotList.className = "history-round-shots";
+
+      if (!round.shots.length) {
+        const empty = document.createElement("span");
+        empty.className = "history-empty";
+        empty.textContent = "尚未击发";
+        shotList.appendChild(empty);
+      } else {
+        round.shots.forEach((shot) => {
+          const chip = document.createElement("span");
+          chip.className = `history-chip ${shot.result === "bang" ? "is-bang" : "is-blank"}`;
+          const shotNumber = shot.state && shot.state.shotsFired
+            ? shot.state.shotsFired
+            : round.shots.length;
+          chip.textContent = `${pad(shotNumber, 2)} ${shot.result === "bang" ? "实弹" : "空膛"}`;
+          shotList.appendChild(chip);
+        });
+      }
+
+      head.append(title, status);
+      main.append(head, shotList);
+      row.appendChild(main);
+
+      if (round.closed) {
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "history-delete";
+        deleteButton.type = "button";
+        deleteButton.dataset.deleteRound = String(round.number);
+        deleteButton.title = `删除第 ${round.number} 轮记录`;
+        deleteButton.setAttribute("aria-label", `删除第 ${round.number} 轮记录`);
+        deleteButton.innerHTML =
+          '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+          '<path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"></path>' +
+          "</svg>";
+        row.appendChild(deleteButton);
+      }
+
+      refs.historyList.appendChild(row);
+    });
+  }
+
+  function setStageTone(tone, animate) {
+    if (animate) {
+      refs.stage.dataset.tone = "ready";
+      void refs.stage.offsetWidth;
+    }
+    refs.stage.dataset.tone = tone;
+  }
+
+  function setStatus(tone, title, detail, animate) {
+    refs.resultStamp.textContent = title;
+    refs.statusTitle.textContent = title;
+    refs.statusDetail.textContent = detail;
+    setStageTone(tone, animate);
+  }
+
+  function renderControls(gameState) {
+    const isFinished = gameState.status === "finished";
+    const isManual = state.mode === "manual";
+
+    refs.modeManual.classList.toggle("is-active", isManual);
+    refs.modeManual.setAttribute("aria-checked", String(isManual));
+    refs.modeAuto.classList.toggle("is-active", !isManual);
+    refs.modeAuto.setAttribute("aria-checked", String(!isManual));
+    refs.intervalControl.classList.toggle("is-disabled", isManual);
+    [
+      refs.durationHours,
+      refs.durationMinutes,
+      refs.durationSeconds
+    ].forEach((input) => {
+      input.disabled = isManual || state.autoRunning;
+    });
+
+    if (isManual) {
+      refs.shotKicker.textContent = "手动模式";
+      refs.autoIcon.innerHTML = ICONS.manual;
+      if (isFinished) {
+        refs.shotLabel.textContent = "本轮结束";
+        refs.shotButton.disabled = true;
+      } else {
+        refs.shotLabel.textContent = state.spinning ? "弹膛旋转" : "扣动扳机";
+        refs.shotButton.disabled = state.spinning;
+      }
+      return;
+    }
+
+    refs.shotKicker.textContent = state.autoRunning ? "等待运行中" : "定时模式";
+    refs.autoIcon.innerHTML = state.autoRunning ? ICONS.pause : ICONS.play;
+    refs.shotLabel.textContent = state.autoRunning
+      ? "停止等待"
+      : isFinished
+        ? "本轮结束"
+        : "启动计时";
+    refs.shotButton.disabled = state.spinning || (isFinished && !state.autoRunning);
+  }
+
+  function renderStatus(gameState) {
+    if (state.spinning) {
+      setStatus(
+        "ready",
+        "弹膛旋转",
+        "机械结构正在旋转，结果将在动作完成后更新。",
+        false
+      );
+      return;
+    }
+
+    if (state.autoRunning && state.autoDeadline) {
+      const remaining = Math.max(0, state.autoDeadline - Date.now());
+      setStatus(
+        "ready",
+        "等待自动击发",
+        `距离下一次自动击发还有 ${window.rouletteTimer.formatClock(remaining)}。`,
+        false
+      );
+      return;
+    }
+
+    if (gameState.status === "finished" && state.latestShot) {
+      const detail = `第 ${gameState.shotsFired} 次击发触发实弹，本轮结束。重新装填可开始新一轮。`;
+      setStatus("bang", "实弹击发", detail, false);
+      return;
+    }
+
+    if (state.latestShot && state.latestShot.result === "blank") {
+      const detail = state.autoRunning
+        ? `第 ${gameState.shotsFired} 次击发为空膛。等待结束后将继续自动击发。`
+        : `第 ${gameState.shotsFired} 次击发为空膛。再次扣动扳机即可继续。`;
+      setStatus("blank", "空膛", detail, false);
+      return;
+    }
+
+    setStatus(
+      "ready",
+      "等待击发",
+      "实弹位置未知，击发结果会记录在左侧。",
+      false
+    );
+  }
+
+  function renderState(options) {
+    const gameState = game.getState();
+    const shouldAnimate = Boolean(options && options.animate);
+
+    refs.shotCount.textContent = String(gameState.shotsFired);
+    refs.blankCount.textContent = String(gameState.blanksFired);
+    refs.roundIndicator.textContent = `第 ${pad(state.roundNumber, 2)} 轮`;
+    refs.stageSequence.textContent = `SEQUENCE ${pad(gameState.shotsFired, 3)}`;
+
+    syncIntervalOutput();
+    renderChambers(gameState);
+    renderHistory();
+    renderControls(gameState);
+    renderStatus(gameState);
+
+    if (shouldAnimate && state.latestShot) {
+      setStageTone(state.latestShot.result, true);
+    }
+  }
+
+  function clearAutoTimer() {
+    if (state.autoTimer) {
+      clearTimeout(state.autoTimer);
+      state.autoTimer = null;
+    }
+  }
+
+  function clearCountdownTimer() {
+    if (state.countdownTimer) {
+      clearInterval(state.countdownTimer);
+      state.countdownTimer = null;
+    }
+  }
+
+  function stopAuto(shouldRender) {
+    const wasRunning = state.autoRunning;
+    state.autoRunning = false;
+    state.autoDeadline = null;
+    clearAutoTimer();
+    clearCountdownTimer();
+    if (wasRunning && shouldRender !== false) renderState();
+  }
+
+  function scheduleAuto() {
+    clearAutoTimer();
+    if (!state.autoRunning || !state.autoDeadline || state.spinning) return;
+
+    const remaining = state.autoDeadline - Date.now();
+    if (remaining <= 0) {
+      state.autoTimer = window.setTimeout(() => {
+        state.autoTimer = null;
+        runAutoShot();
+      }, 0);
+      return;
+    }
+
+    state.autoTimer = window.setTimeout(() => {
+      state.autoTimer = null;
+      scheduleAuto();
+    }, window.rouletteTimer.getTimerChunk(remaining));
+  }
+
+  function startCountdown() {
+    clearCountdownTimer();
+    state.countdownTimer = window.setInterval(() => {
+      if (!state.autoRunning) {
+        clearCountdownTimer();
+        return;
+      }
+      syncIntervalOutput();
+      renderStatus(game.getState());
+    }, 250);
+  }
+
+  async function runAutoShot() {
+    if (!state.autoRunning || state.spinning) return;
+
+    state.autoDeadline = null;
+    clearCountdownTimer();
+    syncIntervalOutput();
+
+    const shot = await fire();
+    if (state.autoRunning && shot && shot.result !== "bang") {
+      startAutoWait();
+    }
+  }
+
+  function startAutoWait() {
+    if (!state.autoRunning) return;
+
+    state.autoDeadline = Date.now() + readDurationMilliseconds();
+    scheduleAuto();
+    startCountdown();
+    renderState();
+  }
+
+  function startAuto() {
+    if (game.getState().status === "finished") return;
+    state.autoRunning = true;
+    startAutoWait();
+  }
+
+  async function fire() {
+    if (state.spinning) return null;
+
+    const before = game.getState();
+    if (before.status === "finished") {
+      if (state.autoRunning) stopAuto();
+      renderState();
+      return null;
+    }
+
+    state.spinning = true;
+    renderState();
+
+    refs.rotor.classList.remove("is-spinning");
+    void refs.rotor.getBoundingClientRect();
+    refs.rotor.classList.add("is-spinning");
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    await sleep(reducedMotion ? 40 : 560);
+    refs.rotor.classList.remove("is-spinning");
+
+    const shot = game.shoot();
+    state.latestShot = shot;
+    state.roundHistory.addShot(shot);
+    state.spinning = false;
+    renderState({ animate: true });
+
+    if (shot.result === "bang" && state.autoRunning) {
+      stopAuto(false);
+      renderState({ animate: true });
+    }
+
+    return shot;
+  }
+
+  function setMode(mode) {
+    if (mode === state.mode) return;
+    if (mode === "manual") stopAuto(false);
+    state.mode = mode;
+    renderState();
+  }
+
+  function reload() {
+    if (state.spinning) return;
+
+    stopAuto(false);
+    game.reset();
+    state.roundNumber = state.roundHistory.closeCurrentRound().currentRound;
+    state.latestShot = null;
+    state.spinning = false;
+    refs.rotor.classList.remove("is-spinning");
+    refs.rotor.classList.add("is-reloading");
+    window.setTimeout(() => refs.rotor.classList.remove("is-reloading"), 760);
+    renderState();
+  }
+
+  refs.modeManual.addEventListener("click", () => setMode("manual"));
+  refs.modeAuto.addEventListener("click", () => setMode("auto"));
+
+  refs.shotButton.addEventListener("click", () => {
+    if (state.mode === "manual") {
+      fire();
+      return;
+    }
+
+    if (state.autoRunning) {
+      stopAuto();
+    } else {
+      startAuto();
+    }
+  });
+
+  [
+    refs.durationHours,
+    refs.durationMinutes,
+    refs.durationSeconds
+  ].forEach((input) => {
+    input.addEventListener("input", syncIntervalOutput);
+    input.addEventListener("change", () => {
+      const minimum = Number(input.min);
+      const maximum = Number(input.max);
+      const value = Math.trunc(Number(input.value) || 0);
+      input.value = String(Math.min(maximum, Math.max(minimum, value)));
+      syncIntervalOutput();
+    });
+  });
+
+  refs.historyList.addEventListener("click", (event) => {
+    const button = event.target.closest
+      ? event.target.closest("[data-delete-round]")
+      : null;
+    if (!button) return;
+
+    const roundNumber = Number(button.dataset.deleteRound);
+    if (state.roundHistory.deleteRound(roundNumber)) {
+      renderHistory();
+    }
+  });
+
+  refs.reloadButton.addEventListener("click", reload);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.code !== "Space" || state.mode !== "manual") return;
+    const target = event.target;
+    if (target instanceof HTMLElement && target.closest("button, input, textarea, select")) {
+      return;
+    }
+    event.preventDefault();
+    fire();
+  });
+
+  renderState();
+})();
+
+  </script>
+</body>
+</html>
